@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit",
     "migrate": "ts-node src/migrate-cli.ts",
     "start": "node dist/main.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "migrate:prod": "node dist/migrate-cli.js",
+    "token": "ts-node src/token-cli.ts"
   },
   "jest": {
     "preset": "ts-jest",

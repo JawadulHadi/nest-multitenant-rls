@@ -1,0 +1,20 @@
+# Render Blueprint: free web service. The database is a free Neon Postgres project
+# (Render's free Postgres is deleted after 30 days; Neon's free tier does not expire).
+# Use Neon's direct (non-pooled) connection strings.
+services:
+  - type: web
+    name: nest-multitenant-rls
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    envVars:
+      # Neon owner role, e.g. postgres://neondb_owner:...@ep-xxx.neon.tech/neondb?sslmode=require
+      - key: ADMIN_DATABASE_URL
+        sync: false
+      # Same host and db as above, but user app_user and the APP_USER_PASSWORD below.
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_USER_PASSWORD
+        sync: false
+      - key: TOKEN_SECRET
+        generateValue: true

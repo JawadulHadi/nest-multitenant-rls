@@ -11,6 +11,36 @@ request -> TenantGuard (verified token -> orgId)
         -> COMMIT                                                  -- tenant setting disappears
 ```
 
+## Architecture
+
+```mermaid
+flowchart TD
+    Client["Client<br/>Authorization: Bearer #lt;token#gt;"] --> Guard
+
+    subgraph Nest["NestJS app"]
+        Guard["TenantGuard<br/>verifyToken(): HMAC, expiry, uuid org<br/>→ req.orgId, else 401"] --> Ctrl
+        Ctrl["ApiController<br/>/projects, /notes, /notes/:id, /me<br/>no WHERE org_id anywhere"] --> WT
+        WT["Db.withTenant(orgId)<br/>BEGIN<br/>set_config('app.org_id', orgId, true)<br/>query · COMMIT / ROLLBACK"]
+        Boot["Db.onModuleInit<br/>refuse to boot if role is<br/>superuser or BYPASSRLS"]
+        Filter["ErrorsFilter<br/>23503 → 422, 42501 → 403,<br/>22P02 / 23514 → 400, else 500"]
+        Ctrl -- "no row" --> NF["404 (other tenant's row<br/>looks missing)"]
+    end
+
+    WT -- "pooled connection as app_user<br/>(no owner, no bypass)" --> PG
+    Boot -.-> PG
+    WT -. "SQL errors" .-> Filter
+
+    subgraph PG["PostgreSQL 16"]
+        AppOrg["app_org()<br/>current_setting('app.org_id')<br/>NULL when unset → matches nothing"]
+        Pol["RLS policies, FORCE on every table<br/>USING + WITH CHECK org_id = app_org()"]
+        Tables[("organizations<br/>projects (unique id, org_id)<br/>notes → FK (project_id, org_id)")]
+        Pol --> Tables
+        AppOrg --> Pol
+    end
+
+    Migrate["npm run migrate<br/>migrate.ts as ADMIN role"] -- "001_init.sql:<br/>roles, tables, policies, grants" --> PG
+```
+
 ## Why RLS instead of `WHERE org_id = ?`
 
 A forgotten WHERE clause is the classic multi-tenant data leak. With RLS the same bug returns zero
@@ -55,8 +85,24 @@ Make a token for an org id with `signToken(secret, orgId)` from `src/token.ts`.
 
 ## Verified here
 
-13 tests pass against a real PostgreSQL 16 server. The Docker compose file and CI workflow were not
-run in this environment, and the README commands were exercised through the test suite rather than by hand.
+13 tests pass against a real PostgreSQL 16 server. The Docker image was built and run against a local
+Postgres 16: it migrated on boot, and `/me`, `POST /projects` and `GET /projects` worked with a minted
+token. The compose file and CI workflow were not run, and Neon itself was not tested.
+
+## Deploy (free)
+
+A **Render free web service** (from the `Dockerfile`) and a **Neon free Postgres** project. Render's
+own free Postgres is deleted after 30 days; Neon's free tier does not expire.
+
+1. Create a Neon project and copy its **direct** (not pooled) connection string. That is `ADMIN_DATABASE_URL`.
+2. Pick a long `APP_USER_PASSWORD`. `DATABASE_URL` is the same URL with user `app_user` and that password.
+3. In Render: New, Blueprint, pick this repo, and fill those three values. `TOKEN_SECRET` is generated.
+
+On boot the container runs migrations (idempotent) when `ADMIN_DATABASE_URL` is set and replaces the
+dev password from `001_init.sql` with `APP_USER_PASSWORD`. The trade-off: the web service holds the
+owner credentials. Remove `ADMIN_DATABASE_URL` after the first deploy if you prefer to migrate by hand.
+
+Mint a token for an org locally: `TOKEN_SECRET=... npm run token -- <org-uuid>`.
 
 ## Known limits
 
