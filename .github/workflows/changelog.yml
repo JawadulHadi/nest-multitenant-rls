@@ -2,6 +2,8 @@ name: changelog
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
 jobs:
   changelog:
     # Every change adds an entry under Unreleased. Label a PR `skip-changelog` to bypass.

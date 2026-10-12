@@ -21,6 +21,9 @@ Every change adds an entry under **Unreleased** in the same pull request. CI che
 ### Changed
 - README "Deploy (free)" now points at Vercel. Render and the Dockerfile stay as a fallback.
 
+### Security
+- The `changelog` CI workflow now limits its token to read-only repository access.
+
 ## PR #2 (2026-10-12)
 
 ### Added
