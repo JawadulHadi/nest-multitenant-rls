@@ -8,3 +8,6 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Vercel CLI project link
+.vercel/

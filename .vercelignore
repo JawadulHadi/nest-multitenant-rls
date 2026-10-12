@@ -1,0 +1,5 @@
+# Files `vercel deploy` from a local checkout should not upload.
+node_modules/
+dist/
+coverage/
+.env
