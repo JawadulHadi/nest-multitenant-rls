@@ -91,16 +91,12 @@ token. The compose file and CI workflow were not run, and Neon itself was not te
 
 ## Deploy (free)
 
-A **Render free web service** (from the `Dockerfile`) and a **Neon free Postgres** project. Render's
-own free Postgres is deleted after 30 days; Neon's free tier does not expire.
+**Vercel** (NestJS preset) with a **Neon** free Postgres project. The API connects as `app_user`
+through Neon's pooled URL; migrations run at build time, for production deploys only, with the
+owner's direct URL. The full guide, including which URL goes where and the trade-offs, is in
+[docs/deployment.md](docs/deployment.md).
 
-1. Create a Neon project and copy its **direct** (not pooled) connection string. That is `ADMIN_DATABASE_URL`.
-2. Pick a long `APP_USER_PASSWORD`. `DATABASE_URL` is the same URL with user `app_user` and that password.
-3. In Render: New, Blueprint, pick this repo, and fill those three values. `TOKEN_SECRET` is generated.
-
-On boot the container runs migrations (idempotent) when `ADMIN_DATABASE_URL` is set and replaces the
-dev password from `001_init.sql` with `APP_USER_PASSWORD`. The trade-off: the web service holds the
-owner credentials. Remove `ADMIN_DATABASE_URL` after the first deploy if you prefer to migrate by hand.
+The Render blueprint (`render.yaml`, built from the `Dockerfile`) is kept as a fallback.
 
 Mint a token for an org locally: `TOKEN_SECRET=... npm run token -- <org-uuid>`.
 
@@ -110,5 +106,16 @@ Mint a token for an org locally: `TOKEN_SECRET=... npm run token -- <org-uuid>`.
 - No rate limiting or pagination cursors. Cross-tenant admin reporting needs a separate role and policy.
 - Table-per-tenant or schema-per-tenant isolation is stronger but costs more to operate. RLS is the
   pragmatic middle.
+
+## Changelog and contributing
+
+Every change adds an entry under **Unreleased** in [`CHANGELOG.md`](CHANGELOG.md) and updates the
+docs it affects (this README, `docs/`, `.env.example`, and `NOTES.md` for mistakes). A CI job fails
+any pull request that skips the changelog (label it `skip-changelog` for changes that truly need
+none). Before opening a PR:
+
+```bash
+npm run typecheck && npm test && npm run build   # tests need Postgres on localhost:5432
+```
 
 See `NOTES.md` for mistakes made and fixed.
